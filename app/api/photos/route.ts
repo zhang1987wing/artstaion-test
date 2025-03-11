@@ -13,11 +13,14 @@ interface IPhoto extends Document {
 
 export async function GET() {
   try {
+    console.log('Connecting to MongoDB...');
     // Connect to MongoDB
     await connectDB();
+    console.log('Connected to MongoDB successfully');
     
     // Get all photos, sorted by creation date (newest first)
     const photos = await Photo.find().sort({ createdAt: -1 });
+    console.log('Found photos:', photos.length);
     
     // Format the response
     const formattedPhotos = photos.map((photo: IPhoto) => ({
@@ -28,6 +31,7 @@ export async function GET() {
       height: photo.height
     }));
 
+    console.log('Formatted photos:', formattedPhotos.length);
     return NextResponse.json({ photos: formattedPhotos });
   } catch (error) {
     console.error('Error getting photos:', error);
