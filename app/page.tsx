@@ -48,11 +48,13 @@ export default function Home() {
       return;
     }
 
-    const file = fileInputRef.current.files[0];
-    console.log('Selected file:', file.name, 'Size:', file.size);
+    const files = fileInputRef.current.files;
+    console.log('Selected files:', Array.from(files).map(file => ({ name: file.name, size: file.size })));
     
     const formData = new FormData();
-    formData.append('file', file);
+    for (let i = 0; i < files.length; i++) {
+      formData.append('files', files[i]);
+    }
 
     setUploading(true);
     try {
@@ -78,7 +80,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Failed to upload file');
+      alert('Failed to upload files');
     } finally {
       setUploading(false);
     }
@@ -94,6 +96,45 @@ export default function Home() {
       showAnimationDuration: 0,
       hideAnimationDuration: 0
     });
+
+    // 添加删除按钮
+    lightbox.on('uiRegister', function() {
+      if (!lightbox.pswp?.ui) return;
+      
+      lightbox.pswp.ui.registerElement({
+        name: 'delete-button',
+        order: 8,
+        isButton: true,
+        html: '<svg aria-hidden="true" class="pswp__icn" viewBox="0 0 24 24" width="24" height="24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="currentColor"/></svg>',
+        onClick: async () => {
+          if (!lightbox.pswp) return;
+          
+          const currentIndex = lightbox.pswp.currIndex;
+          const photo = photos[currentIndex];
+          
+          if (confirm('确定要删除这张图片吗？')) {
+            try {
+              const response = await fetch(`/api/photos/${photo.id}`, {
+                method: 'DELETE'
+              });
+              
+              if (response.ok) {
+                // 关闭 lightbox
+                lightbox.pswp.close();
+                // 重新获取照片列表
+                await fetchPhotos();
+              } else {
+                alert('删除失败');
+              }
+            } catch (error) {
+              console.error('Error deleting photo:', error);
+              alert('删除失败');
+            }
+          }
+        }
+      });
+    });
+
     lightbox.init();
 
     return () => {
@@ -104,22 +145,12 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#1C1C1C]">
       {/* Header */}
-      <header className="bg-[#232323] shadow-lg">
-        {/* Top Bar */}
-        <div className="max-w-[2400px] mx-auto px-6 py-4">
-          <h1 className="text-xl font-bold text-white">My ArtStation</h1>
-        </div>
-        
+      <header className="bg-[#232323] shadow-lg mb-8">        
         {/* Navigation Bar */}
         <nav className="border-t border-[#333333]">
-          <div className="max-w-[2400px] mx-auto px-6 flex justify-between items-center">
-            <div className="inline-block py-3 space-x-8">
-              <a href="#" className="text-white hover:text-[#13AFF0]">Home</a>
-              <a href="#" className="text-white hover:text-[#13AFF0]">Gallery</a>
-              <a href="#" className="text-white hover:text-[#13AFF0]">About</a>
-              <a href="#" className="text-white hover:text-[#13AFF0]">Contact</a>
-            </div>
-            <div>
+          <div className="max-w-[2400px] mx-auto px-6 py-4 flex justify-between items-center">
+            <div className="flex items-center space-x-8">
+              <h1 className="text-2xl font-bold text-white">My ArtStation</h1>
               {user ? (
                 <div className="text-white">Welcome, {user}!</div>
               ) : (
@@ -135,20 +166,22 @@ export default function Home() {
         </nav>
       </header>
 
-      <main className="max-w-[2400px] mx-auto px-6 py-8">
+      <main className="max-w-[2400px] mx-auto px-6">
         {/* Upload Section */}
         {user && (
-          <div className="mb-12">
+          <div className="mb-12 bg-[#232323] p-6 rounded-lg">
+            <h2 className="text-xl font-semibold text-white mb-4">Upload New Image</h2>
             <Input 
               type="file" 
               ref={fileInputRef}
-              className="bg-[#232323] border-[#333333] text-white" 
+              className="bg-[#2C2C2C] border-[#333333] text-white mb-4" 
               accept="image/*"
+              multiple
             />
             <Button 
               onClick={handleUpload}
               disabled={uploading}
-              className="mt-4 bg-[#13AFF0] hover:bg-[#0C8BC0] text-white"
+              className="bg-[#13AFF0] hover:bg-[#0C8BC0] text-white"
             >
               {uploading ? 'Uploading...' : 'Upload'}
             </Button>
@@ -156,32 +189,38 @@ export default function Home() {
         )}
 
         {/* Gallery Section */}
-        <div className="w-full">
+        <div className="w-full bg-[#232323] p-6 rounded-lg">
+          <h2 className="text-xl font-semibold text-white mb-6">Gallery</h2>
           <div 
             id="gallery" 
-            className="grid" 
-            style={{
-              gridTemplateColumns: 'repeat(7, 1fr)',
-              gap: '5px'
-            }}
+            className="w-full"
           >
-            {photos.map((photo) => (
-              <div key={photo.id} className="aspect-square">
-                <a
-                  href={photo.fullsize}
-                  data-pswp-width={photo.width}
-                  data-pswp-height={photo.height}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <img
-                    src={photo.thumbnail}
-                    alt={`Photo ${photo.id}`}
-                    className="w-full h-full object-cover"
-                  />
-                </a>
+            {photos.length > 0 ? (
+              <div className="grid grid-cols-7 gap-[10px] p-[5px]">
+                {photos.map((photo) => (
+                  <a
+                    key={photo.id}
+                    href={photo.fullsize}
+                    data-pswp-width={photo.width}
+                    data-pswp-height={photo.height}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-[20px] overflow-hidden w-[250px] h-[250px]"
+                  >
+                    <img
+                      src={photo.thumbnail}
+                      alt={`Photo ${photo.id}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </a>
+                ))}
               </div>
-            ))}
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-white">
+                <p className="text-xl font-semibold mb-2">No Images Yet</p>
+                <p className="text-gray-400">Upload some images to get started</p>
+              </div>
+            )}
           </div>
         </div>
       </main>
