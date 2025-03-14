@@ -152,7 +152,7 @@ export default function Home() {
             <div className="flex items-center space-x-8">
               <h1 className="text-2xl font-bold text-white">My ArtStation</h1>
               {user ? (
-                <div className="text-white">Welcome, {user}!</div>
+                <div className="text-white"></div>
               ) : (
                 <Button 
                   onClick={() => setUser("Guest")}
@@ -170,7 +170,6 @@ export default function Home() {
         {/* Upload Section */}
         {user && (
           <div className="mb-12 bg-[#232323] p-6 rounded-lg">
-            <h2 className="text-xl font-semibold text-white mb-4">Upload New Image</h2>
             <Input 
               type="file" 
               ref={fileInputRef}
